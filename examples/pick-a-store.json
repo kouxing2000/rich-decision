@@ -1,0 +1,69 @@
+{
+  "title": "Pick a local store for the sync layer",
+  "description": "The app must work **offline first**, with cloud sync as an opt-in. Web support ships next quarter.",
+  "options": [
+    {
+      "id": "hive",
+      "label": "Hive",
+      "recommended": true,
+      "summary": "Pure-Dart key-value store",
+      "pros": [
+        "No native dependencies",
+        "Works on web today"
+      ],
+      "cons": [
+        "No relational queries"
+      ],
+      "effort": "low",
+      "complexity": "low",
+      "value": "high",
+      "meta": [
+        "$0/mo",
+        "3 files"
+      ],
+      "preview": "final box = await Hive.openBox('items');\nbox.put(item.id, item);"
+    },
+    {
+      "id": "drift",
+      "label": "SQLite (drift)",
+      "summary": "Relational, fully queryable",
+      "pros": [
+        "Real SQL and joins",
+        "Typed queries"
+      ],
+      "cons": [
+        "Native deps on mobile",
+        "Web needs a WASM build"
+      ],
+      "effort": "med",
+      "complexity": "med",
+      "value": "high",
+      "meta": [
+        "$0/mo",
+        "8 files"
+      ],
+      "visual": {
+        "type": "svg",
+        "code": "<svg viewBox='0 0 320 110' xmlns='http://www.w3.org/2000/svg' font-family='-apple-system,sans-serif' font-size='12'><rect x='8' y='30' width='80' height='44' rx='8' fill='#3b82f6' opacity='.18' stroke='#3b82f6'/><text x='48' y='56' text-anchor='middle' fill='currentColor'>App</text><rect x='120' y='30' width='80' height='44' rx='8' fill='#10b981' opacity='.18' stroke='#10b981'/><text x='160' y='56' text-anchor='middle' fill='currentColor'>drift</text><rect x='232' y='30' width='80' height='44' rx='8' fill='#f59e0b' opacity='.18' stroke='#f59e0b'/><text x='272' y='56' text-anchor='middle' fill='currentColor'>SQLite</text><path d='M88 52h30' stroke='currentColor' stroke-width='1.5' marker-end='url(#a)'/><path d='M200 52h30' stroke='currentColor' stroke-width='1.5' marker-end='url(#a)'/><defs><marker id='a' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto'><path d='M0 0L10 5L0 10z' fill='currentColor'/></marker></defs></svg>"
+      }
+    },
+    {
+      "id": "firestore",
+      "label": "Firestore offline cache",
+      "summary": "Let the cloud SDK own persistence",
+      "pros": [
+        "Sync for free"
+      ],
+      "cons": [
+        "Cloud sync stops being opt-in",
+        "Cache size is capped"
+      ],
+      "effort": "low",
+      "complexity": "high",
+      "value": "low",
+      "meta": [
+        "usage-billed"
+      ]
+    }
+  ]
+}
