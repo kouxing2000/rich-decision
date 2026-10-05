@@ -823,6 +823,13 @@ PAGE = r"""<!doctype html>
   }
   button:disabled { opacity: .45; cursor: not-allowed; }
   .hint { color: var(--muted); font-size: 13px; }
+  /* Phone width: the notes box takes its own row, or the hint squeezes it to a sliver. */
+  @media (max-width: 640px) {
+    body { padding-bottom: 190px; }
+    .bar .inner { flex-wrap: wrap; gap: 10px; }
+    #notes { flex-basis: 100%; height: 62px; }
+    .hint { flex: 1; font-size: 12px; }
+  }
   .overlay {
     position: fixed; inset: 0; z-index: 2000; background: var(--bg); display: none; place-items: center; text-align: center;
   }
