@@ -94,6 +94,29 @@ The agent also reaches for it on its own whenever a choice carries detail a term
 renders poorly: pros and cons, a snippet, a diagram, three or more options, picking
 several, or several questions at once. A plain one-line question stays in the terminal.
 
+### Make it the usual choice
+
+To have the agent reach for the page more consistently, add this to your own
+instructions: `~/.claude/CLAUDE.md` for Claude Code, `~/.codex/AGENTS.md` for Codex, or a
+project's `CLAUDE.md` / `AGENTS.md`.
+
+```markdown
+## Asking me to choose
+
+- Use the `rich-decision` skill, not a numbered list or the built-in question tool,
+  whenever a choice carries detail a terminal renders poorly: pros and cons, a code
+  snippet, a diagram or mockup, three or more options, picking several, or several
+  questions at once.
+- Judge the turn, not the options: candidates you generated plus "which one?" is a
+  rich decision even when each option is a single line.
+- Put the whole argument on the page: what rules an option out, what you recommend and
+  why. In chat, say the page is open and give its URL; nothing more.
+- Explain with it too: when a diagram or a mockup would say it better than prose, serve
+  an explainer page.
+- Serve it only when a person is watching. A subagent returns its candidates as text
+  and lets its caller decide.
+```
+
 ## How it works
 
 ```
