@@ -22,6 +22,9 @@ actual mockup, side by side, and lets you answer with a note as well as a click.
 - **Several questions on one page**, single- or multi-select, with per-question notes.
 - **Explainer mode**: sections of markdown and diagrams with no options, for "here is how
   this works"; questions come back as notes.
+- **Two languages**: set a primary and an optional secondary language, or let your OS
+  preference list decide. The page offers one-click translation into the secondary, and
+  options can carry a one-line gloss in it.
 - **Answer from your phone**: the page is also served on your LAN behind a per-run token,
   so a phone mockup can be judged on a phone.
 - **No dependencies**: Python standard library, one vendored copy of `marked`, no build
@@ -43,8 +46,17 @@ For one project only, clone it into that project's `.claude/skills/rich-decision
 instead. For another agent that loads `SKILL.md` folders, clone it into that agent's skills
 directory; the skill needs only the ability to run a background shell command.
 
-There is nothing to configure. The agent decides when to use it from the skill
-description, or you can ask for it: *"show me the options as a rich decision"*.
+Nothing needs configuring. The agent decides when to use it from the skill description,
+or you can ask for it: *"show me the options as a rich decision"*.
+
+Languages come from your OS preference list. To choose them yourself, write
+`~/.config/rich-decision/config.json`:
+
+```json
+{ "primary": "en", "secondary": "zh-Hans" }
+```
+
+Leave `secondary` out to turn the translate button off.
 
 ## How it works
 
@@ -94,8 +106,8 @@ which is also what the agent reads.
 - Python 3, standard library only.
 - Optional, macOS: Xcode or the Command Line Tools for the native popup window, or Google
   Chrome for a standalone app window. Without either, a browser tab opens.
-- Optional: the `claude` CLI, for the on-demand 中文 translation button that appears on
-  pages carrying Chinese glosses.
+- Optional: the `claude` CLI, for the on-demand translate button (shown when a secondary
+  language is set).
 
 ## Security
 

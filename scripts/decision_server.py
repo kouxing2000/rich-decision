@@ -14,8 +14,8 @@ Spec JSON shape — single question (legacy):
   {
     "title": "Pick a database",
     "description": "optional markdown-ish intro text",
-    "zh": "一句话中文摘要",           # short Chinese gloss; also valid on every
-                                      # section / question / option (see below)
+    "gloss": "一句话摘要",            # optional one-liner in the user's secondary
+                                      # language; also valid on every section / question / option
     "mode": "single",                 # "single" (default) or "multi"
     "allowNotes": true,               # ignored for the shared box - it's always shown now
     "options": [
@@ -23,7 +23,7 @@ Spec JSON shape — single question (legacy):
         "id": "hive",                 # optional; defaults to index
         "label": "Hive",
         "recommended": true,          # adds a Recommended badge, sorts first visually
-        "zh": "纯 Dart 键值库,无原生依赖",
+        "gloss": "纯 Dart 键值库，无原生依赖",
         "summary": "Pure-Dart KV store",
         "pros": ["No native deps", "Fast"],
         "cons": ["No complex queries"],
@@ -45,7 +45,7 @@ Spec JSON shape — multiple questions (like AskUserQuestion, 1-N questions on o
       {
         "id": "store",                # optional; defaults to _qN
         "title": "Pick a local store",
-        "zh": "选本地存储:离线优先的落盘方案",
+        "gloss": "选本地存储：离线优先的落盘方案",
         "description": "optional per-question intro",
         "mode": "single",             # per-question "single" (default) or "multi"
         "allowNotes": true,           # add a notes box for THIS question (result.answers[i].notes)
@@ -67,6 +67,7 @@ import html
 import json
 import mimetypes
 import os
+import plistlib
 import re
 import secrets
 import shutil
@@ -698,15 +699,16 @@ PAGE = r"""<!doctype html>
     padding: 2px 8px; border-radius: 999px; white-space: nowrap; letter-spacing: .02em;
   }
   .summary { color: var(--muted); margin: 0; font-size: 14px; }
-  /* Chinese gloss (`zh`): one short line per page / section / question / option so the
-     whole page is skimmable in 中文. Muted + rule so it reads as a gloss, not content. */
-  .zh {
+  /* `gloss`: one short line per page / section / question / option in the reader's
+     secondary language, so the whole page is skimmable in it. Muted + rule so it reads as a
+     gloss, not content. */
+  .gloss {
     color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; max-width: 1100px;
     padding-left: 9px; border-left: 2px solid var(--border);
   }
-  .zh-page { margin: -14px 0 22px; font-size: 13.5px; }
-  .question > .zh { margin: 2px 0 8px; }
-  .explain .zh { margin: 0 0 10px; }
+  .gloss-page { margin: -14px 0 22px; font-size: 13.5px; }
+  .question > .gloss { margin: 2px 0 8px; }
+  .explain .gloss { margin: 0 0 10px; }
   ul { margin: 4px 0 0; padding-left: 18px; }
   li { margin: 2px 0; }
   .pros li { color: var(--good); }
@@ -795,11 +797,11 @@ PAGE = r"""<!doctype html>
   /* Inline-rendered fields only. `.intro` / `.q-intro` are block-rendered (`.md`) and are
      styled by the `.md` rules below — listing them here too would leave two equal-specificity
      rules whose winner is decided by source order alone. */
-  .summary code, li code, .zh code {
+  .summary code, li code, .gloss code {
     background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px;
     padding: 0 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;
   }
-  .summary a, li a, .zh a { color: var(--accent); }
+  .summary a, li a, .gloss a { color: var(--accent); }
   .mark {
     flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid var(--border); display: grid; place-items: center; font-size: 13px; color: transparent;
@@ -883,10 +885,10 @@ PAGE = r"""<!doctype html>
     <div class="head-row">
       <h1 id="title"></h1>
       <span id="lang-err" hidden></span>
-      <button id="lang" type="button">中文</button>
+      <button id="lang" type="button" hidden></button>
     </div>
     <div class="intro md" id="intro"></div>
-    <p class="zh zh-page" id="zh-page" hidden></p>
+    <p class="gloss gloss-page" id="gloss-page" hidden></p>
     <div id="sections"></div>
     <div id="questions"></div>
   </div>
@@ -911,6 +913,7 @@ PAGE = r"""<!doctype html>
   // cookie set here would also be sent to every other service on this host.
   const TOK = "__TOKEN__";
   const SPEC = __SPEC_JSON__;
+  const LANGS = __LANGS_JSON__;
   const SECTIONS = Array.isArray(SPEC.sections) ? SPEC.sections : [];
   // Normalize to a list of questions. A legacy spec (top-level options) becomes one
   // headerless question, so the rest of the page treats both shapes identically.
@@ -1043,14 +1046,14 @@ PAGE = r"""<!doctype html>
     catch (e) { console.warn("markdown render failed, using inline fallback:", e); return mdInlineFallback(s); }
   }
 
-  // A short Chinese gloss, rendered wherever the spec carries one (page, section,
-  // question, option card). Returns "" when absent, so it's always safe to concatenate.
-  const zhHtml = (s, cls) => s ? '<p class="zh' + (cls ? " " + cls : "") + '">' + md(s) + "</p>" : "";
+  // A short gloss in the secondary language, rendered wherever the spec carries one (page,
+  // section, question, option card). Returns "" when absent, so it's always safe to concatenate.
+  const glossHtml = (s, cls) => s ? '<p class="gloss' + (cls ? " " + cls : "") + '">' + md(s) + "</p>" : "";
 
   // ---- Translation registry -------------------------------------------------------
   // Every user-visible string registers itself HERE as it renders and gets a sequential
-  // key spliced into its element as data-t="tN". The 中文 button POSTs {key, text} to
-  // /translate and paints the Chinese back into those same nodes.
+  // key spliced into its element as data-t="tN". The translate button POSTs {key, text}
+  // to /translate and paints the translation back into those same nodes.
   //
   // The CLIENT minting the keys is the whole point. The obvious alternative -- Python
   // walks the spec, JS walks it the same way -- needs two walkers agreeing on a path
@@ -1065,14 +1068,16 @@ PAGE = r"""<!doctype html>
   //
   // Deliberately NOT registered: `preview` (SKILL.md's contract is that it is the VERBATIM
   // text being approved -- translating it would change what the user is consenting to),
-  // every `visual` (svg / mermaid / image / html srcdoc is code and markup), the `zh`
-  // glosses (already Chinese), and all ids and urls.
+  // every `visual` (svg / mermaid / image / html srcdoc is code and markup), the glosses
+  // (already in the secondary language), and all ids and urls.
   const T = [];
   const byKey = {};   // k -> item, so a string arriving mid-stream finds its node in O(1)
   let tSeq = 0;
   // mode: "" inline md | "b" block md | "p" plain text | "a:<attr>" attribute value
-  // fixed: hardcoded Chinese for FIXED UI chrome (Pros / Confirm / ...). Chrome never goes
-  // to the model -- it costs nothing and flips instantly while the content is still in flight.
+  // en: the text as rendered -- the spec's own words for content, English for chrome.
+  // fixed: hand-written Chinese for FIXED UI chrome (Pros / Confirm / ...). A language with
+  // hand-written chrome never sends it to the model: it costs nothing and flips instantly
+  // while the content is still in flight. Any other target gets chrome from the model.
   function tReg(text, mode, fixed) {
     if (text == null || text === "") return null;
     const k = "t" + (tSeq++);
@@ -1111,10 +1116,10 @@ PAGE = r"""<!doctype html>
   const introEl = document.getElementById("intro");
   introEl.innerHTML = mdBlock(SPEC.description || "");
   tEl(introEl, SPEC.description || "", "b");
-  if (SPEC.zh) {
-    const zp = document.getElementById("zh-page");
-    zp.innerHTML = md(SPEC.zh);
-    zp.hidden = false;
+  if (SPEC.gloss) {
+    const gp = document.getElementById("gloss-page");
+    gp.innerHTML = md(SPEC.gloss);
+    gp.hidden = false;
   }
   // The reasoning note is ALWAYS available and every answer is optional, so Confirm is
   // never disabled — the user can submit a selection, just a note, or nothing.
@@ -1203,7 +1208,7 @@ PAGE = r"""<!doctype html>
     el.className = "explain";
     let h = "";
     if (s.title) h += '<h2 class="s-title"' + t(s.title) + ">" + md(s.title) + "</h2>";
-    h += zhHtml(s.zh);
+    h += glossHtml(s.gloss);
     if (s.body) h += '<div class="s-body md"' + t(s.body, "b") + ">" + mdBlock(s.body) + "</div>";
     h += visualHtml(s.visual, "s" + si);
     el.innerHTML = h;
@@ -1259,7 +1264,7 @@ PAGE = r"""<!doctype html>
       if (q.title) head += '<h2 class="q-title"' + t(q.title) + ">" + md(q.title) + "</h2>";
       head += "</div>";
     }
-    head += zhHtml(q.zh);
+    head += glossHtml(q.gloss);
     if (q.description) head += '<div class="q-intro md"' + t(q.description, "b") + ">" + mdBlock(q.description) + "</div>";
     const qHint = multi ? "Select one or more (optional)" : "Select one (optional)";
     head += '<p class="q-hint"' + t(qHint, "", multi ? "可多选（均为可选）" : "选择一项（可选）") + ">" + qHint + "</p>";
@@ -1277,7 +1282,7 @@ PAGE = r"""<!doctype html>
       let html = '<div class="top"><h3' + t(o.label || o.id) + ">" + md(o.label || o.id) + "</h3>";
       if (o.recommended) html += '<span class="badge"' + t("Recommended", "", "推荐") + ">Recommended</span>";
       html += '<div class="mark">' + (multi ? "&#10003;" : "&#9679;") + "</div></div>";
-      html += zhHtml(o.zh);
+      html += glossHtml(o.gloss);
       html += scoreChips(o);
       html += visualHtml(o.visual, id + "-" + o.id);
       if (o.summary) html += '<p class="summary"' + t(o.summary) + ">" + md(o.summary) + "</p>";
@@ -1363,59 +1368,119 @@ PAGE = r"""<!doctype html>
     });
   }
 
-  // ---- 中文 toggle ----------------------------------------------------------------
+  // ---- Translate toggle -----------------------------------------------------------
   // On demand only: nothing is translated until this is clicked, so a popup nobody
   // translates costs zero tokens. The strings then STREAM in and paint one at a time as
-  // the model finishes each: first Chinese at ~3s rather than ~17s of a page that looks
+  // the model finishes each: first text at ~3s rather than ~17s of a page that looks
   // like the button did nothing. After a complete run the map is cached in the page and
   // every later toggle is local -- no second request in either direction.
+  //
+  // PRIMARY is the language of the fixed labels; SECONDARY (optional) is the translate
+  // target. Both come from the server (config file, else the OS list) because the page
+  // cannot see them: navigator.languages reports only the browser's own UI language.
+  const PRIMARY = LANGS.primary || "en";
+  const SECONDARY = LANGS.secondary || null;
+  const base = tag => String(tag || "").split("-")[0].toLowerCase();
+  // The tag's script, inferred the way the server's _variant() does it: an explicit
+  // four-letter subtag, else for Chinese the region (TW / HK / MO Traditional, the rest
+  // Simplified), else none. The two sides must agree or a pair the server keeps apart
+  // would reach the page looking like one language.
+  const scriptOf = tag => {
+    const p = String(tag || "").split("-");
+    const s = p.slice(1).find(x => /^[A-Za-z]{4}$/.test(x));
+    if (s) return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+    if (p[0].toLowerCase() !== "zh") return "";
+    return p.slice(1).some(x => ["tw", "hk", "mo"].includes(x.toLowerCase())) ? "Hant" : "Hans";
+  };
+  // The hand-written Chinese is Simplified, so it serves only a Simplified tag; zh-Hant gets
+  // its labels from the model.
+  const isHans = tag => base(tag) === "zh" && scriptOf(tag) === "Hans";
+  // Fixed labels exist hand-written in English (`en`) and Simplified Chinese (`fixed`). Any
+  // other primary shows the English ones; any other target gets them from the model.
+  const chromeIn = (it, tag) => isHans(tag) ? it.fixed : base(tag) === "en" ? it.en : null;
+  const original = it => it.fixed ? (chromeIn(it, PRIMARY) || it.en) : it.en;
+  // Each language is named in itself (中文, 日本語, Español), the way a language picker
+  // does it: a reader of that language finds it without knowing the other one. The script
+  // joins the name only when both languages share a base, where it is the whole
+  // difference (简体中文 / 繁體中文).
+  const sameBase = !!SECONDARY && base(PRIMARY) === base(SECONDARY);
+  const langName = tag => {
+    const script = scriptOf(tag);
+    const code = sameBase && script ? base(tag) + "-" + script : base(tag);
+    try {
+      const n = new Intl.DisplayNames([code], { type: "language" }).of(code);
+      if (n) return n.charAt(0).toLocaleUpperCase(base(tag)) + n.slice(1);
+    } catch (e) { /* Intl.DisplayNames needs Safari 14.1+; fall through */ }
+    return code.toUpperCase();
+  };
+  // Status lines are hand-written in English and Simplified Chinese; any other target gets
+  // the English ones.
+  const MSGS = {
+    en: { busy: (g, n) => "Translating " + g + "/" + n,
+          cut: m => "Translation interrupted: " + m + " left in the original",
+          partial: m => m + " left in the original",
+          fail: w => "Translation failed: " + w, closed: "connection closed", timeout: "timed out" },
+    zh: { busy: (g, n) => "翻译中 " + g + "/" + n,
+          cut: m => "翻译中断：" + m + " 段未译出，保留原文",
+          partial: m => m + " 段未译出，保留原文",
+          fail: w => "翻译失败：" + w, closed: "连接中断", timeout: "超时" },
+  };
+  const msg = isHans(SECONDARY) ? MSGS.zh : MSGS.en;
+
+  document.documentElement.lang = PRIMARY;
+  if (base(PRIMARY) !== "en") paint(it => (it.fixed ? original(it) : null));
+
   const langBtn = document.getElementById("lang");
-  // Offered only on a page that carries a `zh` gloss somewhere. The gloss is the spec's
-  // statement that its reader reads Chinese; a reader who does not has no use for a button
-  // that translates into it, and an unasked-for model call is the last thing it should be.
-  langBtn.hidden = !(SPEC.zh || SECTIONS.some(s => s && s.zh) || QUESTIONS.some(q =>
-    q && (q.zh || (q.options || []).some(o => o && o.zh))));
+  // Offered only when a secondary language is configured: nobody else has a use for it,
+  // and an unasked-for model call is the last thing it should be.
+  langBtn.hidden = !SECONDARY;
+  const fwdLabel = SECONDARY ? langName(SECONDARY) : "";
+  const backLabel = langName(PRIMARY);
+  langBtn.textContent = fwdLabel;
   const langErr = document.getElementById("lang-err");
-  let zhMap = null;
-  let showingZh = false;
-  // Distinct from `zhMap != null`: a run that broke halfway leaves a usable PARTIAL map
-  // that must not be mistaken for the finished one, or 中文 would never retry the rest.
-  let zhComplete = false;
+  let trMap = null;
+  let showingTr = false;
+  // Distinct from `trMap != null`: a run that broke halfway leaves a usable PARTIAL map
+  // that must not be mistaken for the finished one, or the button would never retry the rest.
+  let trComplete = false;
 
   // Fixed chrome only. Painted the moment the button is pressed so the page frame flips
-  // instantly while the content request is still in flight.
-  const paintChrome = zh => paint(it => (it.fixed ? (zh ? it.fixed : it.en) : null));
-  const setLang = zh => {
-    showingZh = zh;
-    document.documentElement.lang = zh ? "zh-CN" : "en";
-    langBtn.textContent = zh ? "EN" : "中文";
-    // The partial-translation warning describes the Chinese view only -- leaving it up
-    // over the restored English page states a problem the user is no longer looking at.
-    if (!zh) langErr.hidden = true;
-    paint(zh ? (it => it.fixed || zhMap[it.k]) : (it => it.en));
+  // instantly while the content request is still in flight. A target with no hand-written
+  // labels gets them with the content instead, so nothing paints here for it.
+  const paintChrome = on => paint(it => (it.fixed ? (on ? chromeIn(it, SECONDARY) : original(it)) : null));
+  const setLang = on => {
+    showingTr = on;
+    document.documentElement.lang = on ? SECONDARY : PRIMARY;
+    langBtn.textContent = on ? backLabel : fwdLabel;
+    // The partial-translation warning describes the translated view only -- leaving it up
+    // over the restored original states a problem the user is no longer looking at.
+    if (!on) langErr.hidden = true;
+    paint(on ? (it => (it.fixed && chromeIn(it, SECONDARY)) || trMap[it.k]) : original);
   };
 
   langBtn.onclick = async () => {
-    if (showingZh) { setLang(false); return; }
-    if (zhComplete) { setLang(true); return; }          // cached -> instant, no network
-    const items = T.filter(it => !it.fixed).map(it => ({ k: it.k, t: it.en }));
-    if (!items.length) { zhMap = {}; zhComplete = true; setLang(true); return; }
+    if (showingTr) { setLang(false); return; }
+    if (trComplete) { setLang(true); return; }          // cached -> instant, no network
+    // Content always goes to the model; a fixed label only when the target has no
+    // hand-written text for it.
+    const items = T.filter(it => !it.fixed || !chromeIn(it, SECONDARY)).map(it => ({ k: it.k, t: it.en }));
+    if (!items.length) { trMap = {}; trComplete = true; setLang(true); return; }
     langErr.hidden = true;
     langBtn.disabled = true;
     paintChrome(true);
-    // Chinese starts landing before the run finishes, so the page IS in Chinese from here
-    // on -- showingZh has to say so, or EN would have nothing to restore from.
-    showingZh = true;
-    document.documentElement.lang = "zh-CN";
-    zhMap = zhMap || {};
+    // Translations start landing before the run finishes, so the page IS translated from
+    // here on -- showingTr has to say so, or the back button would have nothing to restore.
+    showingTr = true;
+    document.documentElement.lang = SECONDARY;
+    trMap = trMap || {};
     const total = items.length;
-    // Counted per RUN, not against zhMap: a retry after a partial failure re-delivers keys
-    // zhMap already holds, and counting those as "not new" would leave got at 0 while the
+    // Counted per RUN, not against trMap: a retry after a partial failure re-delivers keys
+    // trMap already holds, and counting those as "not new" would leave got at 0 while the
     // page visibly repaints -- which then sends a failure down the nothing-landed branch
-    // and strands the page half Chinese under English chrome.
+    // and strands the page half translated under original chrome.
     const arrived = new Set();
     let got = 0;
-    const progress = () => { langBtn.textContent = "翻译中 " + got + "/" + total; };
+    const progress = () => { langBtn.textContent = msg.busy(got, total); };
     progress();
     // IDLE, not total. A close-delimited stream gives the browser no other way to tell
     // "still generating" from "stalled", and a fixed wall clock would abort a long page
@@ -1458,40 +1523,40 @@ PAGE = r"""<!doctype html>
             // Guarded by the per-run set, so a reconcile repaint of the same key is not
             // counted as new progress but a retry's first delivery still is.
             if (!arrived.has(rec.k)) { arrived.add(rec.k); got++; }
-            zhMap[rec.k] = rec.v;
+            trMap[rec.k] = rec.v;
             paintOne(rec.k, rec.v);
             progress();
           } else if (rec.t === "done") closed = rec;
           else if (rec.t === "error") throw new Error(rec.error || "translation failed");
         }
       }
-      if (!closed) throw new Error("连接中断");
-      zhComplete = true;
+      if (!closed) throw new Error(msg.closed);
+      trComplete = true;
       setLang(true);
       if (closed.partial) {
-        langErr.textContent = closed.partial + " 段未译出，保留英文";
+        langErr.textContent = msg.partial(closed.partial);
         langErr.hidden = false;
       }
     } catch (e) {
-      const why = e && e.name === "AbortError" ? "超时" : ((e && e.message) || e);
+      const why = e && e.name === "AbortError" ? msg.timeout : ((e && e.message) || e);
       if (got) {
-        // KEEP WHAT LANDED. Tearing painted Chinese back off to show an error helps
+        // KEEP WHAT LANDED. Tearing painted translations back off to show an error helps
         // nobody, and a half-translated page is the same shape as a partial result, which
-        // this page has always tolerated. zhComplete stays false, so pressing 中文 again
-        // retries -- instantly, if the run actually finished server-side and cached.
-        langBtn.textContent = "EN";
+        // this page has always tolerated. trComplete stays false, so pressing the button
+        // again retries -- instantly, if the run actually finished server-side and cached.
+        langBtn.textContent = backLabel;
         // Deliberately NOT the underlying error: "translation produced nothing" is true of
-        // the validated result but flatly contradicts the Chinese the user is looking at.
-        // The count is the part they can act on; the cause is on the server's stderr.
-        langErr.textContent = "翻译中断：" + (total - got) + " 段未译出，保留英文";
+        // the validated result but flatly contradicts the translation the user is looking
+        // at. The count is the part they can act on; the cause is on the server's stderr.
+        langErr.textContent = msg.cut(total - got);
       } else {
         // Nothing landed, so there is no work to protect: go all the way back. setLang
         // rather than paintChrome, because chrome is not the only thing that may have been
-        // painted -- an earlier run can have left content in zhMap, and reverting only the
-        // chrome would leave Chinese content under an English frame. setLang(false) also
+        // painted -- an earlier run can have left content in trMap, and reverting only the
+        // chrome would leave translated content under original chrome. setLang(false) also
         // clears langErr, so the message is set after it, not before.
         setLang(false);
-        langErr.textContent = "翻译失败：" + why;
+        langErr.textContent = msg.fail(why);
       }
       langErr.hidden = false;
     } finally {
@@ -1540,6 +1605,116 @@ PAGE = r"""<!doctype html>
 # No API key and no exported token: `claude -p` authenticates off the macOS Keychain entry
 # the interactive CLI already uses. Do NOT "fix" this by adding --bare (that skips the
 # Keychain and fails with "Not logged in") or by plumbing in ANTHROPIC_API_KEY.
+# ---- Languages ------------------------------------------------------------------------
+# primary: the language of the page's fixed labels. The agent writes the page itself in the
+# conversation's language -- the one signal that the reader is reading it right now, which an
+# OS list cannot promise.
+# secondary (optional): what the translate button translates into; glosses are written in it.
+# Resolved by the server because the page cannot see them: the native WKWebView reports
+# navigator.languages = ["en-US"] and the Chrome fallback ["en-US", "en"] on a Mac whose
+# preferred languages are English and Chinese.
+CONFIG_PATH = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"),
+                           "rich-decision", "config.json")
+_LANG_TAG = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
+
+
+def _norm_tag(raw):
+    """A BCP 47 tag from a config or OS value, or None. `zh_CN.UTF-8@x` -> `zh-CN`.
+
+    The full tag is kept, script and region included: `zh-Hans` and `zh-Hant` are different
+    translation targets, and the model reads the tag directly."""
+    if not isinstance(raw, str):
+        return None
+    tag = raw.split(".")[0].split("@")[0].replace("_", "-").strip()
+    return tag if _LANG_TAG.match(tag) else None
+
+
+def _base(tag):
+    return (tag or "").split("-")[0].lower()
+
+
+_HANT_REGIONS = {"tw", "hk", "mo"}
+
+
+def _variant(tag):
+    """(language, script) -- what decides whether two tags read the same.
+
+    Region alone does not (en-US and en-GB are one reader), but script does: zh-Hans and
+    zh-Hant are different targets. A Chinese tag with no script is inferred from its region,
+    the way the OS does it: zh-TW / zh-HK / zh-MO are Traditional, every other zh Simplified."""
+    parts = (tag or "").split("-")
+    script = next((p.title() for p in parts[1:] if len(p) == 4 and p.isalpha()), "")
+    if parts[0].lower() == "zh" and not script:
+        script = "Hant" if any(p.lower() in _HANT_REGIONS for p in parts[1:]) else "Hans"
+    return parts[0].lower(), script
+
+
+def _os_languages():
+    """The user's preferred languages, in order, from the OS. [] when unreadable.
+
+    macOS keeps the list in the global preferences plist; plistlib reads it with no
+    subprocess, so a missing toolchain or a slow `defaults` can never stall a popup.
+    Elsewhere the POSIX locale variables are the only list there is."""
+    if sys.platform == "darwin":
+        try:
+            with open(os.path.expanduser("~/Library/Preferences/.GlobalPreferences.plist"),
+                      "rb") as f:
+                raw = plistlib.load(f).get("AppleLanguages") or []
+        except Exception:                                   # noqa: BLE001 - optional input
+            raw = []
+    else:
+        raw = (os.environ.get("LANGUAGE") or os.environ.get("LC_ALL")
+               or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or "").split(":")
+    return [t for t in (_norm_tag(x) for x in raw) if t]
+
+
+def resolve_languages():
+    """(primary, secondary or None, source): the config file, else the OS list, else English.
+
+    A config file wins even when it leaves `secondary` out or sets it null -- that is how
+    someone with a second OS language turns the translate button off."""
+    cfg = None
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict):
+            raise ValueError("expected a JSON object")
+    except FileNotFoundError:
+        cfg = None
+    except (OSError, ValueError) as e:
+        print(f"warning: ignoring {CONFIG_PATH}: {e}", file=sys.stderr)
+        cfg = None
+    if cfg is not None:
+        for key in ("primary", "secondary"):
+            if cfg.get(key) not in (None, "") and not _norm_tag(cfg.get(key)):
+                print(f"warning: {CONFIG_PATH}: {key}={cfg.get(key)!r} is not a language tag "
+                      f"(e.g. \"en\", \"zh-Hans\")", file=sys.stderr)
+        # A file that names only the secondary still means "my OS primary": defaulting the
+        # missing key to English would silently relabel a Chinese- or Japanese-first page.
+        os_langs = _os_languages() if not _norm_tag(cfg.get("primary")) else []
+        primary = _norm_tag(cfg.get("primary")) or (os_langs[0] if os_langs else "en")
+        secondary = _norm_tag(cfg.get("secondary"))
+        source = CONFIG_PATH
+        if secondary and _variant(secondary) == _variant(primary):
+            print(f"warning: {CONFIG_PATH}: secondary {secondary} reads the same as primary "
+                  f"{primary}; no translate button", file=sys.stderr)
+            secondary = None
+    else:
+        langs = _os_languages()
+        primary = langs[0] if langs else "en"
+        secondary = next((t for t in langs[1:] if _variant(t) != _variant(primary)), None)
+        source = "OS preferences" if langs else "default"
+    return primary, secondary, source
+
+
+def languages_line(langs):
+    primary, secondary, source = langs
+    return (f"languages: primary={primary} secondary={secondary or 'none'} (from {source}); "
+            f"write the page in the conversation's language"
+            + (", any glosses in the secondary (none when the conversation is already in it)"
+               if secondary else ""))
+
+
 XLATE_MODEL = "sonnet"          # mechanical transform; opus buys nothing here
 XLATE_TIMEOUT = 180
 XLATE_MAX_ITEMS = 400           # request caps: a client bug must not spawn an unbounded job
@@ -1557,7 +1732,7 @@ XLATE_WORKERS = 4
 SUBMIT_MAX_BYTES = 1_000_000
 
 _XLATE_LOCK = threading.Lock()          # single-flight: a double-click must not double-spend
-_XLATE_CACHE = {}                       # sha1(payload) -> {key: zh}
+_XLATE_CACHE = {}                       # sha1(target + payload) -> ({key: text}, missing)
 _XLATE_CACHE_LOCK = threading.Lock()
 # Live `claude -p` children, so shutdown can kill them. See kill_translations().
 _XLATE_PROCS = set()
@@ -1862,7 +2037,19 @@ def _parse_result(env):
     return result
 
 
-def _build_prompt(group):
+# Script-specific punctuation rules, keyed on the target's base language. Only CJK needs one:
+# the model's commonest defect there is ASCII punctuation inside full-width prose.
+_PUNCT_RULES = {
+    "zh": ("- Punctuation between Chinese words must be FULL-WIDTH (，。：；？！), never the\n"
+           "  ASCII forms (,.:;?!). ASCII punctuation stays only inside code, URLs and\n"
+           "  identifiers. This is the single most common defect in this task.\n"),
+    "ja": ("- Punctuation in Japanese prose must be the full-width forms (、。！？「」), never\n"
+           "  the ASCII forms (,.!?). ASCII punctuation stays only inside code, URLs and\n"
+           "  identifiers. This is the single most common defect in this task.\n"),
+}
+
+
+def _build_prompt(group, target):
     """The input goes in as JSON too, not as `key: value` lines.
 
     A line-oriented framing has to answer "where does this value end", and the two fields
@@ -1871,7 +2058,8 @@ def _build_prompt(group):
     newlines are escaped in, escaped out, and the schema pins the shape of the reply."""
     payload = json.dumps(dict(group), ensure_ascii=False, indent=1)
     return (
-        "Translate every VALUE in this JSON object into Simplified Chinese.\n"
+        f"Translate every VALUE in this JSON object into the language whose BCP 47 tag\n"
+        f"is `{target}` (respect its script subtag: Hans is Simplified, Hant is Traditional).\n"
         "Return an object with the same keys, each mapped to its translation.\n"
         "\n"
         "Rules:\n"
@@ -1883,10 +2071,8 @@ def _build_prompt(group):
         "  value keeps its paragraph breaks.\n"
         "- Translate meaning, not word-for-word. This is UI text a developer is reading in\n"
         "  order to make a decision.\n"
-        "- Punctuation between Chinese words must be FULL-WIDTH (，。：；？！), never the\n"
-        "  ASCII forms (,.:;?!). ASCII punctuation stays only inside code, URLs and\n"
-        "  identifiers. This is the single most common defect in this task.\n"
-        "\n" + payload
+        + _PUNCT_RULES.get(_base(target), "")
+        + "\n" + payload
     )
 
 
@@ -1928,8 +2114,8 @@ def _repair_escapes(src, out):
     return _ESCAPED_NL.sub(lambda m: m.group(1) + "\n", out)
 
 
-def _translate_chunk(group, on_key=None):
-    """group: [(key, text)] -> ({key: zh}, [missing keys]).
+def _translate_chunk(group, target, on_key=None):
+    """group: [(key, text)] -> ({key: translation}, [missing keys]).
 
     Splices whatever ARRIVED rather than failing the batch: one dropped key out of forty
     should not discard thirty-nine good translations. The missing ones stay English and
@@ -1951,7 +2137,7 @@ def _translate_chunk(group, on_key=None):
         if k in src and isinstance(v, str) and v.strip():
             on_key(k, _repair_escapes(src[k], v))
 
-    data = _run_claude(_build_prompt(group), schema, preview if on_key else None)
+    data = _run_claude(_build_prompt(group, target), schema, preview if on_key else None)
     got = {k: _repair_escapes(src[k], v) for k, v in data.items()
            if k in src and isinstance(v, str) and v.strip()}
     missing = [k for k, _ in group if k not in got]
@@ -1971,8 +2157,8 @@ def _chunk_pairs(pairs):
     return groups
 
 
-def translate_items(pairs, on_key=None):
-    """pairs: [(key, text)] -> ({key: zh}, n_untranslated).
+def translate_items(pairs, target, on_key=None):
+    """pairs: [(key, text)] -> ({key: translation}, n_untranslated).
 
     Partial failure NEVER raises: a chunk that errors contributes nothing and those keys
     simply stay English on the page. The worst case is an untranslated card next to
@@ -1985,7 +2171,7 @@ def translate_items(pairs, on_key=None):
     out, missing_total = {}, 0
     groups = _chunk_pairs(pairs)
     with ThreadPoolExecutor(max_workers=min(XLATE_WORKERS, len(groups))) as pool:
-        for group, future in [(g, pool.submit(_translate_chunk, g, on_key)) for g in groups]:
+        for group, future in [(g, pool.submit(_translate_chunk, g, target, on_key)) for g in groups]:
             try:
                 got, missing = future.result()
                 out.update(got)
@@ -1999,7 +2185,7 @@ def translate_items(pairs, on_key=None):
     return out, missing_total
 
 
-def translate_precheck(payload):
+def translate_precheck(payload, target):
     """Body: {"items":[{"k":..., "t":...}]} -> (err, job), where err is a (code, resp) pair
     to send instead, or None when the request may proceed.
 
@@ -2010,6 +2196,8 @@ def translate_precheck(payload):
 
     Deliberately isolated from the decision result: nothing on this path touches --out,
     result_holder or done_event, so no translation failure can block or alter a Confirm."""
+    if not target:
+        return (400, {"ok": False, "error": "no secondary language configured"}), None
     items = payload.get("items")
     if not isinstance(items, list) or not items:
         return (400, {"ok": False, "error": "no items"}), None
@@ -2028,23 +2216,26 @@ def translate_precheck(payload):
     # Keys are in the digest as well as the texts: the same server can serve a second page
     # (the workflow hands the user the URL, and reopening it is the documented recovery),
     # and an identical text set under different keys must not reuse the other page's map.
-    digest = hashlib.sha1(
-        "\x00".join(k + "\x1f" + t for k, t in pairs).encode("utf-8")).hexdigest()
+    # The target is in it too, so no map can ever be served in the wrong language.
+    digest = hashlib.sha1((target + "\x1e" + "\x00".join(
+        k + "\x1f" + t for k, t in pairs)).encode("utf-8")).hexdigest()
 
     # Checked BEFORE the lock, so a reopened page is still served instantly while another
     # window is mid-translation.
     with _XLATE_CACHE_LOCK:
         cached = _XLATE_CACHE.get(digest)
     if cached is not None:
-        return None, {"pairs": pairs, "digest": digest, "cached": cached, "locked": False}
+        return None, {"pairs": pairs, "digest": digest, "cached": cached, "locked": False,
+                  "target": target}
     # non-blocking: a second page translating at the same time is told to wait rather than
     # queued behind the first, so concurrent windows cannot stack up subprocess fan-outs.
     if not _XLATE_LOCK.acquire(blocking=False):
-        return (429, {"ok": False, "error": "另一个页面正在翻译，请稍候重试"}), None
+        return (429, {"ok": False, "error": "another page is translating; retry in a moment"}), None
     # Re-read under the lock: the holder may have filled this very digest while we waited.
     with _XLATE_CACHE_LOCK:
         cached = _XLATE_CACHE.get(digest)
-    return None, {"pairs": pairs, "digest": digest, "cached": cached, "locked": True}
+    return None, {"pairs": pairs, "digest": digest, "cached": cached, "locked": True,
+                  "target": target}
 
 
 def stream_translate(job, emit):
@@ -2079,7 +2270,7 @@ def stream_translate(job, emit):
                 on_key(k, v)
             emit({"t": "done", "partial": missing, "cached": True})
             return
-        mapping, missing = translate_items(job["pairs"], on_key)
+        mapping, missing = translate_items(job["pairs"], job["target"], on_key)
         # Reconcile. The streamed values came off an UNVALIDATED delta feed, so every key
         # the validated envelope disagrees with -- or that never streamed at all -- is
         # re-sent now. on_key drops the ones that already match, so this normally emits
@@ -2226,7 +2417,7 @@ def effective_title(spec):
     return f"{marker} {subject}"
 
 
-def build_handler(spec, out_path, result_holder, done_event, assets, ctx, token):
+def build_handler(spec, out_path, result_holder, done_event, assets, ctx, token, langs):
     # html.escape the title (it lands in <title>); `</` -> `<\/` keeps any spec string
     # containing "</script>" from breaking out of the inline <script> block (json.dumps
     # leaves "/" unescaped, and `<\/` is still valid JSON that parses back to "</").
@@ -2244,6 +2435,10 @@ def build_handler(spec, out_path, result_holder, done_event, assets, ctx, token)
         # and the user gets a bare 超时 instead of the server's specific error record.
         "__IDLE_MS__": str((XLATE_TIMEOUT + 20) * 1000),
         "__TOKEN__": token,
+        # No `claude` CLI means a button that can only fail (a Codex-only machine, say), so
+        # the page is told there is no target; glosses still follow langs[1].
+        "__LANGS_JSON__": json.dumps({"primary": langs[0],
+                                      "secondary": langs[1] if _claude_bin() else None}),
     }
     # longest key first: `re` alternation is leftmost-first, not longest-match, so if a
     # placeholder is ever added that prefixes another, dict order would silently decide
@@ -2478,7 +2673,7 @@ def build_handler(spec, out_path, result_holder, done_event, assets, ctx, token)
                     if raw is None:
                         self._send_json(413, {"ok": False, "error": "payload too large"})
                         return
-                    err, job = translate_precheck(json.loads(raw or b"{}"))
+                    err, job = translate_precheck(json.loads(raw or b"{}"), langs[1])
                 except Exception as e:                      # noqa: BLE001
                     self._send_json(400, {"ok": False, "error": f"{type(e).__name__}: {e}"})
                     return
@@ -2606,7 +2801,13 @@ def main():
                     help="localhost-only: no listener reachable from the network")
     args = ap.parse_args()
 
+    # Resolved once per run: the page labels, the translate button and every /translate
+    # call must agree on one answer even if the config file changes mid-decision.
+    langs = resolve_languages()
     if args.new_dir:
+        # stderr, so stdout stays the one path the agent copies; the agent reads this line
+        # to know which language to write the page in.
+        print(languages_line(langs), file=sys.stderr)
         print(new_run_dir())
         return
     if not args.spec:
@@ -2652,7 +2853,8 @@ def main():
     result_holder = {}
     done_event = threading.Event()
     ctx = {"popup": None}
-    handler = build_handler(spec, out_path, result_holder, done_event, assets, ctx, token)
+    handler = build_handler(spec, out_path, result_holder, done_event, assets, ctx, token,
+                            langs)
     # The LAN listener is the default, so a phone or tablet can answer without anyone
     # having to think about it beforehand. It widens the bind to every interface, never
     # just the LAN one: the popup on this machine still opens 127.0.0.1, and a
@@ -2669,6 +2871,7 @@ def main():
     # actually being written, and a path it merely assumed is the bug this whole block exists
     # to retire.
     print(f"Decision result: {out_path}  (runId {RUN_ID})", file=sys.stderr)
+    print(languages_line(langs), file=sys.stderr)
     if lan:
         ip = lan_ip()
         if ip:

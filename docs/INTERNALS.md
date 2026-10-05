@@ -56,10 +56,38 @@ is `SKILL.md`; this file is for whoever maintains the scripts.
   it will play anything. `.mov` with PCM audio is verified only in the native window; the
   Chrome tiers may not play it.
 
-## The 中文 translation
+## Languages and translation
 
-- The button is shown only when the spec carries a `zh` gloss somewhere: the gloss is the
-  spec's statement that its reader reads Chinese.
+- **The page's own text follows the conversation, not the settings.** The agent writes in
+  the language it is chatting in; primary sets only the fixed labels, secondary the
+  translate target and the gloss language. An OS-derived primary is a guess about the
+  reader, and the conversation is not. Known edge: when the conversation is in the
+  secondary, the button still offers that same language and its back label names the
+  primary; the agent skips glosses there, and nothing else adapts, because the page does not
+  declare its own language.
+- **The server resolves the languages; the page cannot.** On a Mac whose preferred
+  languages are English then Chinese, the native WKWebView reports
+  `navigator.languages = ["en-US"]` and the Chrome fallback `["en-US", "en"]`. So
+  `resolve_languages()` reads `~/.config/rich-decision/config.json`, else the OS list
+  (macOS `AppleLanguages` from the global preferences plist via `plistlib`, no subprocess;
+  `LANGUAGE` / `LC_*` / `LANG` elsewhere), else English. It runs once per server, so the
+  labels, the button and every `/translate` call agree even if the file changes mid-decision.
+- A config file wins even without `secondary`: that is the off switch for someone whose OS
+  lists a second language. A file without `primary` keeps the OS primary rather than English,
+  or naming only a secondary would silently relabel a non-English page. A malformed tag, or
+  a secondary that reads the same as the primary, is warned about on stderr, never silently
+  used.
+- "Reads the same" is `_variant()`: language plus script, never region. en-US and en-GB are
+  one reader; zh-Hans and zh-Hant are two, and a Chinese tag with no script takes it from
+  its region (TW / HK / MO Traditional, the rest Simplified).
+- Tags stay whole (`zh-Hans-US`), because script and region pick the variant: the prompt
+  passes the BCP 47 tag and tells the model Hans is Simplified, Hant Traditional.
+- The button shows only when a secondary is set AND `_claude_bin()` finds the CLI: without
+  it the button could only fail, so the page is told there is no target. Glosses still follow
+  the secondary. It is labelled with the language's own name from
+  `Intl.DisplayNames` (falling back to the upper-cased code on WebKit older than Safari
+  14.1). `/translate` refuses with 400 when no secondary is set, and always uses the
+  server's target, never one the page names.
 - Nothing is translated until the button is clicked. The click POSTs the rendered strings
   to `/translate`, which shells out to `claude -p` and pushes each string back as an NDJSON
   record the moment the model finishes generating it; the page paints them top-down into
@@ -84,16 +112,23 @@ is `SKILL.md`; this file is for whoever maintains the scripts.
   widened the `?` in a CJK URL into `？` and produced dead links, the other blanked
   `` `\n` `` code spans. A half-width comma is cosmetic; a dead link in the text being
   decided on is a defect. The prompt asks for full-width, which is as far as this goes.
+  `_PUNCT_RULES` carries that rule for Chinese and Japanese targets only.
+- **The translation cache digest includes the target**, so a map can never be served in
+  the wrong language.
 - `preview` and every `visual` are never translated (`preview` is the verbatim text being
-  approved; visuals are code). `zh` glosses are left alone (already Chinese). Option ids and
-  labels in the result stay untranslated.
-- **Fixed chrome (Pros / Cons / Recommended / Confirm / hints) is a hardcoded en→zh table**
-  in the page, not a model call — deterministic, free, and it flips instantly while the
-  content is in flight.
+  approved; visuals are code). Glosses are left alone (already in the secondary). Option ids
+  and labels in the result stay untranslated.
+- **Fixed chrome (Pros / Cons / Recommended / Confirm / hints) is hand-written in English
+  and Simplified Chinese** in the page — deterministic, free, and it flips instantly while
+  the content is in flight. Only a Simplified tag (`isHans`) uses the Chinese table, so
+  zh-Hant never gets Simplified labels. A primary with no hand-written chrome shows English;
+  a target with none gets its chrome from the model, in the same request as the content.
+  Status lines (progress, partial, failure) are hand-written only: Simplified Chinese for a
+  Simplified target, English for every other.
 - **Failure degrades, never blocks, and never un-paints.** A failed chunk leaves its items
   English; partial results are spliced, never discarded. Once streaming has started the
-  page keeps every string already painted and reports `翻译中断：N 段未译出，保留英文`; only a
-  run that delivered nothing reverts with `翻译失败`. Confirm is untouched on every path.
+  page keeps every string already painted and reports how many strings stayed in the
+  original; only a run that delivered nothing reverts fully, with a failure line. Confirm is untouched on every path.
 - **A streamed value is a preview; the envelope is the authority.** Incremental records come
   off `--include-partial-messages` deltas, which nothing has validated. The closing
   `{"type":"result"}` line carries the schema-checked payload, and any key it disagrees

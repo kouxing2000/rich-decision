@@ -50,8 +50,9 @@ warranted, use this skill — that instinct is the signal it's designed for.
    python3 ~/.claude/skills/rich-decision/scripts/decision_server.py --new-dir
    ```
 
-   It prints one absolute path and exits. **Copy that path literally into the Write call and
-   into step 2** — do NOT capture it in a shell variable: the Bash tool does not persist
+   It prints one absolute path and exits, plus a `languages:` line on stderr
+   (`primary=en secondary=zh-Hans`) that says which language any glosses take. **Copy the
+   path literally into the Write call and into step 2** — do NOT capture it in a shell variable: the Bash tool does not persist
    shell state between calls, and the spec has to be written in between, so a `$d` from
    step 1 expands to the empty string in step 2 and the server dies on `/spec.json`.
 
@@ -147,7 +148,7 @@ Field notes:
   lone scored card can't be compared with anything.
 - `meta`: optional array of short free-form **fact** chips on the same row — `"$0/mo"`,
   `"3 files"`, `"reversible"`. Facts you can defend, not judgments; inline markdown works.
-- `zh`: optional Chinese gloss — see below.
+- `gloss`: optional one-line gloss in the user's secondary language — see "Languages" below.
 - `allowNotes` (top level): **ignored** — the shared reasoning box is ALWAYS shown, and its
   text comes back as `notes` (`""` if empty). Only the per-question `allowNotes` does
   anything (see "Multiple questions" below).
@@ -159,7 +160,7 @@ Which renderer a field gets depends on whether it is a prose *block* or a *line*
 - **Full GFM (block)** in the three multi-line fields: the page `description`, each
   question's `description`, and every `sections[].body`. Tables, lists (nested too),
   headings, fenced code, blockquotes, rules, links. A lone newline stays a line break.
-- **Inline only** everywhere else — `label`, `summary`, `pros`, `cons`, `zh`:
+- **Inline only** everywhere else — `label`, `summary`, `pros`, `cons`, `gloss`:
   `**bold**`, `*italic*`, `` `inline code` ``, `[text](https://url)`.
 - `title` and `preview` stay literal (`title` is also the page `<title>`; `preview` is
   a code box).
@@ -208,21 +209,36 @@ flow/sequence/graph diagrams that are tedious in raw SVG; **HTML** for a faithfu
 mockup; **image** only for a real raster; **video** when the thing being judged moves or
 makes sound.
 
-### `zh` — optional Chinese gloss
+### Languages and `gloss`
 
-Every **page**, **section**, **question**, and **option** takes an optional `zh`: one short
-Chinese line, rendered as a muted, rule-marked gloss under the heading (or under the
-option's label), so a reader who skims in Chinese can take in the whole decision and drop
-into the English detail only where it matters. Write one when the user reads Chinese; leave
-it out otherwise.
+Write the page in the language of the conversation. The user also has a **primary**
+language and, optionally, a **secondary** one; `--new-dir` prints both. The primary sets the
+page's fixed labels; the secondary is the translate button's target and the gloss language.
 
-- Keep it to **one line, ~15-40 characters** — a gloss, not a translation. For an option:
-  what it *is* + the one thing that decides for or against it. For a question/section: what
-  is actually being decided or explained.
-- Same inline markdown as the other text fields. Full-width Chinese punctuation is right
-  here.
-- A page carrying any `zh` also shows a **中文** button that translates the rest of the
-  page on demand (see Notes).
+- **`gloss`** — every page, section, question, and option takes an optional one-line gloss
+  in the secondary language, rendered as a muted line under its heading so the decision can
+  be skimmed in that language. Never required; leave it out when there is no secondary, or
+  when the conversation (and so the page) is already in the secondary, where it would only
+  repeat the text. Keep it to one short line — a gloss, not a translation. For an option: what it *is* + the
+  one thing that decides for or against it. Same inline markdown as the other text fields.
+- **The translate button** appears only when a secondary language is set and the `claude`
+  CLI is installed. It is labelled in that language (中文, 日本語, Español) and translates
+  the page on demand (see Notes).
+- **The fixed labels** (Pros, Cons, Confirm, hints) follow the primary: hand-written for
+  English and Simplified Chinese, English for any other language.
+
+The user sets both in `~/.config/rich-decision/config.json` (`$XDG_CONFIG_HOME` is
+honoured):
+
+```json
+{ "primary": "en", "secondary": "zh-Hans" }
+```
+
+Without that file the server takes the first two distinct languages of the OS preference
+list (macOS Language & Region; `LANGUAGE` / `LANG` elsewhere). A config file without
+`secondary` turns the button off; one without `primary` keeps the OS primary. Tags are
+BCP 47: `zh-Hans` is Simplified Chinese, `zh-Hant` Traditional, and the two count as
+different languages.
 
 ## Multiple questions on one page
 
@@ -263,7 +279,7 @@ its own notes field, returned as `answers[i].notes`.
 ```
 
 - Each question takes the same fields as a single-question spec: `id` (optional, defaults
-  to `_qN`), `title`, `zh`, `description`, `mode`, an optional `allowNotes`, and an
+  to `_qN`), `title`, `gloss`, `description`, `mode`, an optional `allowNotes`, and an
   `options` array with the identical option shape.
 - `mode` is **per question**; mix `single` and `multi` freely.
 - The page numbers the sections (`1 / N`).
@@ -273,7 +289,7 @@ its own notes field, returned as `answers[i].notes`.
 
 To visually EXPLAIN something — an architecture, a flow, a design, "here's how X works" —
 add a top-level `sections` array. Each section is a full-width content block rendered ABOVE
-any questions: optional `title`, optional `zh`, optional `body` (full GFM markdown), optional
+any questions: optional `title`, optional `gloss`, optional `body` (full GFM markdown), optional
 `visual` (same five types as option cards, with a taller height cap since the visual IS the
 content).
 
@@ -341,7 +357,7 @@ order — and the shared `notes` (`""` if empty):
 - `answers[i].notes` is present only for questions with `allowNotes: true`. The top-level
   `notes` is always the shared bottom box.
 - Option ids and labels stay in the spec's language even when the user read the page
-  translated, so a decision made in 中文 reads back identically.
+  translated, so a decision made in translation reads back identically.
 - **Back-compat:** for a single-question (top-level `options`) spec, the result ALSO
   mirrors the lone answer at the top level as `choice` / `chosen`.
 
@@ -382,12 +398,12 @@ and the server exits.
   (3) A plain browser tab — also the only tier on Linux and Windows. The native window is
   an ordinary one and can be covered; **Always on Top** is `cmd-shift-T` and **Zoom** is
   `cmd +` / `cmd -` / `cmd 0`, both persisted across popups.
-- **The 中文 button** appears on any page carrying a `zh` gloss. Clicking it translates the
-  page by shelling out to `claude -p` (the Claude Code CLI, using its existing login), with
-  the strings streaming in as they are generated. Nothing is translated until it is
-  clicked. `preview` and every `visual` are never translated — `preview` is the verbatim
-  text being approved. A failed translation leaves the English in place and never blocks
-  Confirm.
+- **The translate button** appears when a secondary language is set (see "Languages").
+  Clicking it translates the page by shelling out to `claude -p` (the Claude Code CLI, using
+  its existing login), with the strings streaming in as they are generated; clicking again
+  restores the original. Nothing is translated until it is clicked. `preview` and every
+  `visual` are never translated — `preview` is the verbatim text being approved. A failed
+  translation leaves the original in place and never blocks Confirm.
 - If the user closes the window without choosing, the command keeps waiting. Reopen the
   printed URL, or kill the background task — the kill is clean and reaps the popup.
 - Every route requires the per-run access token (`?k=`), so nothing that merely finds the
