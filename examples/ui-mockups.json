@@ -1,0 +1,40 @@
+{
+  "title": "Pick the first onboarding screen",
+  "description": "Three takes on the screen a new user sees first. The mockups follow your light or dark theme.",
+  "options": [
+    {
+      "id": "value",
+      "label": "Value first",
+      "recommended": true,
+      "summary": "Say what the app does, then offer sign-up",
+      "pros": ["Explains the app before asking for anything"],
+      "cons": ["One extra tap to reach a note"],
+      "visual": {
+        "type": "html",
+        "code": "<div style=\"width:230px;margin:6px 0 6px 18px;border:1px solid #8886;border-radius:30px;padding:14px 16px 20px;font:13px -apple-system,system-ui,sans-serif\"><div style=\"height:5px;width:56px;margin:0 auto 16px;border-radius:3px;background:#8885\"></div><div style=\"height:130px;border-radius:16px;background:#6366f12e;display:flex;align-items:center;justify-content:center\"><svg width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='#6366f1' stroke-width='1.6' stroke-linecap='round'><rect x='4' y='3' width='16' height='18' rx='3'/><path d='M8 8h8M8 12h8M8 16h5'/></svg></div><div style=\"font-weight:700;font-size:18px;margin:16px 0 6px\">Your notes, on every device</div><div style=\"opacity:.7;line-height:1.45\">Write offline. Sync when you want to.</div><div style=\"margin-top:18px;background:#3b82f6;color:#fff;text-align:center;padding:10px;border-radius:12px;font-weight:600\">Get started</div><div style=\"margin-top:10px;text-align:center;opacity:.7\">I already have an account</div></div>"
+      }
+    },
+    {
+      "id": "signin",
+      "label": "Sign in first",
+      "summary": "An account before anything else",
+      "pros": ["Sync works from the first note"],
+      "cons": ["Asks for commitment before showing anything"],
+      "visual": {
+        "type": "html",
+        "code": "<div style=\"width:230px;margin:6px 0 6px 18px;border:1px solid #8886;border-radius:30px;padding:14px 16px 20px;font:13px -apple-system,system-ui,sans-serif\"><div style=\"height:5px;width:56px;margin:0 auto 22px;border-radius:3px;background:#8885\"></div><div style=\"font-weight:700;font-size:22px;margin:0 0 4px\">Welcome</div><div style=\"opacity:.7;margin-bottom:18px\">Sign in to keep your notes in sync.</div><div style=\"border:1px solid #8887;border-radius:10px;padding:9px 10px;opacity:.75;margin-bottom:8px\">Email</div><div style=\"border:1px solid #8887;border-radius:10px;padding:9px 10px;opacity:.75\">Password</div><div style=\"margin-top:16px;background:#3b82f6;color:#fff;text-align:center;padding:10px;border-radius:12px;font-weight:600\">Sign in</div><div style=\"margin-top:8px;background:#111;color:#fff;text-align:center;padding:10px;border-radius:12px;font-weight:600;border:1px solid #8886\">Continue with a passkey</div><div style=\"margin-top:12px;text-align:center;opacity:.7\">Create an account</div></div>"
+      }
+    },
+    {
+      "id": "try",
+      "label": "Straight to a note",
+      "summary": "Open an empty note; offer sync later",
+      "pros": ["Zero friction: typing within a second"],
+      "cons": ["Users who never see the banner never sync"],
+      "visual": {
+        "type": "html",
+        "code": "<div style=\"width:230px;margin:6px 0 6px 18px;border:1px solid #8886;border-radius:30px;padding:14px 16px 16px;font:13px -apple-system,system-ui,sans-serif\"><div style=\"height:5px;width:56px;margin:0 auto 16px;border-radius:3px;background:#8885\"></div><div style=\"display:flex;justify-content:space-between;opacity:.6;margin-bottom:14px\"><span>&lsaquo; Notes</span><span>Done</span></div><div style=\"font-weight:700;font-size:20px;opacity:.45;margin-bottom:12px\">Untitled</div><div style=\"height:9px;border-radius:5px;background:#8884;margin:9px 0;width:92%\"></div><div style=\"height:9px;border-radius:5px;background:#8884;margin:9px 0;width:78%\"></div><div style=\"height:9px;border-radius:5px;background:#8884;margin:9px 0;width:85%\"></div><div style=\"height:9px;border-radius:5px;background:#8884;margin:9px 0;width:40%\"></div><div style=\"height:58px\"></div><div style=\"border-radius:12px;background:#3b82f62e;padding:10px 12px;line-height:1.4\"><b>Sync across devices?</b><br><span style=\"opacity:.75\">Sign in any time from Settings.</span></div></div>"
+      }
+    }
+  ]
+}

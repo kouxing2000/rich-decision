@@ -8,7 +8,7 @@ the agent has a choice for you to make, it writes a small JSON spec. The skill s
 local page with comparison cards, pros and cons, code previews, diagrams and mockups, opens
 it in a popup window, and hands your pick back to the agent as JSON.
 
-![A decision page: three option cards with score chips, pros and cons, a code preview and a diagram](docs/screenshot.png)
+![The agent is asked which local store to use, opens a decision page with three option cards, the user picks Hive and adds a note, and the agent continues with that choice](docs/demo.gif)
 
 ## Why
 
@@ -16,17 +16,43 @@ A terminal is a poor place to compare three architectures, judge a UI mockup or 
 ideas. The built-in question tool shows labels and a monospace preview. This shows the
 actual mockup, side by side, and lets you answer with a note as well as a click.
 
+![The same question twice: on the left a dense numbered list in a terminal, on the right three option cards with chips, pros and cons, a code preview and a diagram](docs/before-after.png)
+
+## What it can show
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/gallery-questions.png" alt="Two questions on one page: a single-select row of three cards and a multi-select row with two cards ticked">
+<br><b>Several questions on one page</b>, single- or multi-select, with an optional notes
+box per question.
+</td>
+<td width="50%" valign="top">
+<img src="docs/gallery-explainer.png" alt="An explainer page with a flow diagram, a table of conflict rules and a short section of prose">
+<br><b>Explainer pages</b>: sections of markdown, tables and diagrams with no options, for
+"here is how this works". Your questions come back as notes.
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<img src="docs/gallery-mockups.png" alt="Three phone onboarding screens rendered as HTML mockups, one per option card">
+<br><b>UI mockups</b> in real HTML and CSS, sandboxed, with an Enlarge button. They follow
+your light or dark theme.
+</td>
+<td width="50%" valign="top">
+<img src="docs/gallery-phone.png" alt="The same decision page on two phones, in English and translated into Chinese">
+<br><b>Your language, on your phone</b>: one click translates the page into your second
+language, and the page is also served on your LAN, so a phone mockup can be judged on a
+phone.
+</td>
+</tr>
+</table>
+
+And on every page:
+
 - **Comparison cards**: summary, pros/cons, effort/complexity/value chips, fact chips, a
   "Recommended" badge.
 - **Visuals on any card**: inline SVG, Mermaid, sandboxed HTML/CSS mockups, images, video.
-- **Several questions on one page**, single- or multi-select, with per-question notes.
-- **Explainer mode**: sections of markdown and diagrams with no options, for "here is how
-  this works"; questions come back as notes.
-- **Two languages**: set a primary and an optional secondary language, or let your OS
-  preference list decide. The page offers one-click translation into the secondary, and
-  options can carry a one-line gloss in it.
-- **Answer from your phone**: the page is also served on your LAN behind a per-run token,
-  so a phone mockup can be judged on a phone.
 - **No dependencies**: Python standard library, one vendored copy of `marked`, no build
   step. Works offline; only Mermaid diagrams load from a CDN, and fall back to their source
   without one.
@@ -46,17 +72,27 @@ For one project only, clone it into that project's `.claude/skills/rich-decision
 instead. For another agent that loads `SKILL.md` folders, clone it into that agent's skills
 directory; the skill needs only the ability to run a background shell command.
 
-Nothing needs configuring. The agent decides when to use it from the skill description,
-or you can ask for it: *"show me the options as a rich decision"*.
-
-Languages come from your OS preference list. To choose them yourself, write
-`~/.config/rich-decision/config.json`:
+Nothing needs configuring. Languages come from your OS preference list. To choose them
+yourself, write `~/.config/rich-decision/config.json`:
 
 ```json
 { "primary": "en", "secondary": "zh-Hans" }
 ```
 
 Leave `secondary` out to turn the translate button off.
+
+## Use it
+
+Ask for it in your own words:
+
+- *"Show me the three auth flows as a rich decision."*
+- *"Mock up both onboarding screens and let me pick."*
+- *"Explain how the sync layer works, with a diagram."*
+- *"Here are ten feature ideas. Let me triage them."*
+
+The agent also reaches for it on its own whenever a choice carries detail a terminal list
+renders poorly: pros and cons, a snippet, a diagram, three or more options, picking
+several, or several questions at once. A plain one-line question stays in the terminal.
 
 ## How it works
 
@@ -92,10 +128,13 @@ The result (abridged):
   "notes": "went with no native deps" }
 ```
 
-Try it yourself:
+Try it yourself. Every decision page pictured above comes from one of these specs:
 
 ```bash
 python3 scripts/decision_server.py --spec examples/pick-a-store.json
+python3 scripts/decision_server.py --spec examples/several-questions.json
+python3 scripts/decision_server.py --spec examples/explainer.json
+python3 scripts/decision_server.py --spec examples/ui-mockups.json
 ```
 
 The full spec format, the visual types and the CLI flags are in [SKILL.md](SKILL.md),

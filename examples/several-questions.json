@@ -1,0 +1,67 @@
+{
+  "title": "Configure the sync layer",
+  "description": "Two related decisions for the offline-first notes app. Answer either, both, or just leave a note.",
+  "questions": [
+    {
+      "id": "store",
+      "title": "Where do notes live on the device?",
+      "mode": "single",
+      "options": [
+        {
+          "id": "hive",
+          "label": "Hive",
+          "recommended": true,
+          "summary": "Pure-Dart key-value store",
+          "pros": ["No native dependencies", "Works on web today"],
+          "cons": ["No relational queries"],
+          "meta": ["3 files"]
+        },
+        {
+          "id": "drift",
+          "label": "SQLite (drift)",
+          "summary": "Relational, fully queryable",
+          "pros": ["Real SQL and joins"],
+          "cons": ["Web needs a WASM build"],
+          "meta": ["8 files"]
+        },
+        {
+          "id": "json",
+          "label": "Plain JSON files",
+          "summary": "One file per note",
+          "pros": ["Nothing to learn", "Easy to debug"],
+          "cons": ["Every search is a full scan"],
+          "meta": ["1 file"]
+        }
+      ]
+    },
+    {
+      "id": "sync",
+      "title": "When should it sync?",
+      "mode": "multi",
+      "allowNotes": true,
+      "options": [
+        {
+          "id": "write",
+          "label": "On every write",
+          "summary": "Push each change as it happens",
+          "pros": ["Other devices see an edit within seconds"],
+          "cons": ["The most network traffic"]
+        },
+        {
+          "id": "open",
+          "label": "On app open",
+          "summary": "Pull once at launch",
+          "pros": ["Cheap"],
+          "cons": ["A long session drifts"]
+        },
+        {
+          "id": "background",
+          "label": "In the background",
+          "summary": "OS-scheduled, roughly every 15 minutes",
+          "pros": ["Fresh data at launch"],
+          "cons": ["The OS decides when it runs"]
+        }
+      ]
+    }
+  ]
+}

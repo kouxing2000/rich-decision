@@ -1,0 +1,22 @@
+{
+  "title": "How the sync layer works",
+  "description": "A walkthrough before the code review. Nothing to pick: read it, then confirm, or leave a question in the box.",
+  "sections": [
+    {
+      "title": "1. Every write lands locally first",
+      "body": "The app never waits on the network. A write goes to the local store and to an **outbox** in one transaction, and the sync worker drains the outbox whenever a connection exists.",
+      "visual": {
+        "type": "svg",
+        "code": "<svg viewBox='0 0 760 190' xmlns='http://www.w3.org/2000/svg' font-family='-apple-system,sans-serif' font-size='14'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0L10 5L0 10z' fill='currentColor'/></marker></defs><rect x='10' y='62' width='110' height='56' rx='10' fill='#3b82f6' opacity='.18' stroke='#3b82f6'/><text x='65' y='95' text-anchor='middle' fill='currentColor'>App</text><rect x='190' y='18' width='150' height='56' rx='10' fill='#10b981' opacity='.18' stroke='#10b981'/><text x='265' y='51' text-anchor='middle' fill='currentColor'>Local store</text><rect x='190' y='106' width='150' height='56' rx='10' fill='#10b981' opacity='.18' stroke='#10b981'/><text x='265' y='139' text-anchor='middle' fill='currentColor'>Outbox</text><rect x='420' y='106' width='140' height='56' rx='10' fill='#f59e0b' opacity='.18' stroke='#f59e0b'/><text x='490' y='139' text-anchor='middle' fill='currentColor'>Sync worker</text><rect x='640' y='106' width='110' height='56' rx='10' fill='#a855f7' opacity='.18' stroke='#a855f7'/><text x='695' y='139' text-anchor='middle' fill='currentColor'>Cloud</text><path d='M120 82L186 50' stroke='currentColor' stroke-width='1.5' fill='none' marker-end='url(#ar)'/><path d='M120 98L186 130' stroke='currentColor' stroke-width='1.5' fill='none' marker-end='url(#ar)'/><path d='M340 134H416' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><path d='M560 134H636' stroke='currentColor' stroke-width='1.5' stroke-dasharray='5 4' marker-end='url(#ar)'/><text x='155' y='178' text-anchor='middle' fill='currentColor' opacity='.65' font-size='12'>one transaction</text><text x='598' y='96' text-anchor='middle' fill='currentColor' opacity='.65' font-size='12'>when online</text><path d='M600 20V176' stroke='currentColor' stroke-width='1' stroke-dasharray='3 4' opacity='.35'/></svg>"
+      }
+    },
+    {
+      "title": "2. Conflicts resolve per field",
+      "body": "| Case | Rule |\n|---|---|\n| The same field edited on two devices | Last write wins, by server timestamp |\n| Deleted on one device, edited on another | The edit wins and the note comes back |\n| Offline for more than 30 days | Full re-download, then the outbox replays on top |"
+    },
+    {
+      "title": "3. Offline is the normal case",
+      "body": "Sync is opt-in per user. With it off, the app is a purely local notes app and the outbox is never drained."
+    }
+  ]
+}
