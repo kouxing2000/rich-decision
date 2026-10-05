@@ -183,7 +183,8 @@ anything irreversible. Details in [docs/INTERNALS.md](docs/INTERNALS.md).
 
 Read [docs/INTERNALS.md](docs/INTERNALS.md) before changing the scripts. Most of the
 non-obvious code exists because the obvious version was tried and failed, and that file
-records how.
+records how. After changing how the page looks, regenerate the pictures above with
+`node docs/images/make.mjs`.
 
 ## License
 

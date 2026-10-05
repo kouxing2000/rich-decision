@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { width: 1280px; height: 800px; overflow: hidden;
+    background: radial-gradient(1200px 700px at 30% 20%, #2a3350, #151925 70%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; position: relative; }
+  .win { position: absolute; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08); }
+  .tb { height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    background: #24272f; color: #aab; font-size: 13px; position: relative; }
+  .tb i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .tb i:nth-child(1) { background: #ff5f57; } .tb i:nth-child(2) { background: #febc2e; } .tb i:nth-child(3) { background: #28c840; }
+  .tb span { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none; }
+  #term { left: 70px; top: 60px; width: 1140px; height: 680px; background: #14161c; }
+  #tlines { margin: 0; padding: 22px 26px; color: #d8dbe3; font: 22px/1.6 ui-monospace, "SF Mono", Menlo, monospace;
+    white-space: pre-wrap; }
+  .u { color: #e6e8ef; } .p { color: #7d8597; } .a { color: #d8dbe3; } .dim { color: #7d8597; }
+  .ok { color: #3fb950; } .dot { color: #6ea8fe; }
+  .caret { display: inline-block; width: 10px; height: 20px; background: #c9ced8; vertical-align: -3px; }
+  #pop { left: 90px; top: 34px; width: 1100px; background: #0f1117; display: none; }
+  #pop img { display: block; width: 1100px; height: 687.5px; }
+  #cur { position: absolute; width: 26px; height: 34px; display: none; z-index: 10;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+</style></head>
+<body>
+  <div class="win" id="term"><div class="tb"><i></i><i></i><i></i><span>notes-app &mdash; agent</span></div><pre id="tlines"></pre></div>
+  <div class="win" id="pop"><div class="tb"><i></i><i></i><i></i><span>Pick a local store for the sync layer</span></div><img id="popimg" alt=""></div>
+  <svg id="cur" viewBox="0 0 26 34"><path d="M2 2 L2 27 L8.5 21 L13 31 L17.5 29 L13 19.5 L22 19.5 Z" fill="#fff" stroke="#000" stroke-width="1.6" stroke-linejoin="round"/></svg>
+<script>
+  // Popup content origin and scale: page captures are 1280 CSS px wide.
+  const POP = { x: 90, y: 34 + 30, k: 1100 / 1280 };
+  window.setState = async s => {
+    document.getElementById('tlines').innerHTML = s.term || '';
+    const pop = document.getElementById('pop'), img = document.getElementById('popimg');
+    if (s.img) {
+      pop.style.display = 'block';
+      if (!img.src.endsWith(s.img)) { img.src = s.img; await img.decode(); }
+    } else pop.style.display = 'none';
+    const cur = document.getElementById('cur');
+    if (s.cursor) {
+      cur.style.display = 'block';
+      cur.style.left = (POP.x + s.cursor[0] * POP.k - 2) + 'px';
+      cur.style.top = (POP.y + s.cursor[1] * POP.k - 2) + 'px';
+    } else cur.style.display = 'none';
+    return 1;
+  };
+</script>
+</body></html>

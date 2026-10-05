@@ -322,3 +322,25 @@ If the user closes the window without choosing, the server keeps waiting. Killin
 clean: on SIGTERM it reaps its popup and the Chrome fallback's temp profile. The Swift host
 turns SIGTERM into an ordinary `NSApp.terminate`, because the default action kills it
 without telling LaunchServices and leaves a blank "Running in Background" Dock tile.
+
+## README images
+
+`node docs/images/make.mjs` regenerates every image in `docs/` from the specs in
+`examples/` and the layout pages in `docs/images/`. Run it after any change to the page's
+look; nothing else notices that the README's pictures have gone stale.
+
+- It needs Node 22+ (it uses the global `WebSocket`, so there is nothing to install),
+  Google Chrome, ffmpeg 5.1+ (for `-fps_mode`) and the `claude` CLI. Set `CHROME` when the
+  browser is not at its default path.
+- It drives headless Chrome over the DevTools protocol rather than `--screenshot`,
+  because the GIF and the gallery need clicks, typed notes and the translate button.
+- Languages are pinned to `en` + `zh-Hans` through a temporary config, so the output does
+  not depend on the maintainer's OS language list.
+- Every image is built in a temp dir and copied into `docs/` only once all six exist, so a
+  failed run leaves the committed set whole. The `claude` check runs first, because without
+  the CLI the server hides the translate button on every page.
+- `gallery-phone.png` comes from a live model call, so its Chinese wording can change on
+  every run. The other five come out byte-identical from run to run on one machine; fonts
+  differ between systems, so another machine's run will differ slightly. In `demo.gif`
+  only the page frames are captures: the terminal and the cursor are drawn by
+  `docs/images/stage.html`.
