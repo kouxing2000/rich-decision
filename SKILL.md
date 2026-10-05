@@ -11,7 +11,9 @@ description: >-
   generated — next steps, proposed rules, ideas to triage, competing readings of an ambiguous
   request — even bare one-liners: a numbered list plus "which do you want?" is this skill's job,
   not chat's. Fall back to AskUserQuestion only for a plain one-line question with label-only
-  options, or when no human is watching the turn (a subagent, or an unattended run).
+  options, or when no human is watching the turn (a subagent, or an unattended run). Also use
+  it when asked to set up, configure or integrate rich-decision (the instructions block, the
+  Claude Code question-tool guard, the languages): SETUP.md walks through it.
 allowed-tools: Bash, Write, Read
 ---
 
@@ -23,6 +25,10 @@ for block markdown, so the page needs no network.
 
 Commands below use the default install path `~/.claude/skills/rich-decision`. If this skill
 lives somewhere else, substitute the directory this file was loaded from.
+
+**Setting up.** When the user asks to set up, configure or integrate rich-decision (the
+instructions block for `CLAUDE.md` / `AGENTS.md`, the Claude Code question-tool guard, the
+languages), read `SETUP.md` in this directory and follow it.
 
 ## When to use this vs. the built-in question tool
 

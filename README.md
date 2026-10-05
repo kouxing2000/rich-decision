@@ -72,8 +72,13 @@ For one project only, clone it into that project's `.claude/skills/rich-decision
 instead. For another agent that loads `SKILL.md` folders, clone it into that agent's skills
 directory; the skill needs only the ability to run a background shell command.
 
-Nothing needs configuring. Languages come from your OS preference list. To choose them
-yourself, write `~/.config/rich-decision/config.json`:
+Nothing needs configuring. To fit it to how you work, ask your agent to **set up
+rich-decision**: it reads [SETUP.md](SETUP.md), shows what it found and what it could
+change on a decision page, and applies only what you pick (the instructions block below,
+the Claude Code guard, your languages).
+
+Languages come from your OS preference list. To choose them yourself, write
+`~/.config/rich-decision/config.json`:
 
 ```json
 { "primary": "en", "secondary": "zh-Hans" }
@@ -115,6 +120,28 @@ project's `CLAUDE.md` / `AGENTS.md`.
   an explainer page.
 - Serve it only when a person is watching. A subagent returns its candidates as text
   and lets its caller decide.
+```
+
+**Claude Code only: a guard for the built-in question tool.**
+[`hooks/rich_decision_guard.py`](hooks/rich_decision_guard.py) refuses `AskUserQuestion`
+when a call has 2+ questions, 3+ options, multi-select, an option preview or a long option
+description, and tells the agent to serve a page instead. One question with two options and
+no preview or long description still goes through. Add it to `~/.claude/settings.json`
+(for a one-project install, that project's `.claude/settings.json`, with the command
+`"python3 \"$CLAUDE_PROJECT_DIR/.claude/skills/rich-decision/hooks/rich_decision_guard.py\" || true"`,
+quotes escaped as shown); it takes effect from the next session. Keep the `|| true`: a missing script would otherwise exit 2,
+which Claude Code reads as "block every question":
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "AskUserQuestion",
+        "hooks": [ { "type": "command", "timeout": 15,
+          "command": "python3 \"$HOME/.claude/skills/rich-decision/hooks/rich_decision_guard.py\" || true" } ] }
+    ]
+  }
+}
 ```
 
 ## How it works
